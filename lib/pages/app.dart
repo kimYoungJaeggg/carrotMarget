@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/pages/favorite.dart';
 
 import 'package:flutter_svg/svg.dart';
 
@@ -68,7 +69,6 @@ class _AppState extends State<App> {
     switch (_currentPageIndex) {
       case 0:
         return Home();
-        break;
       case 1:
         return Container();
         break;
@@ -79,8 +79,7 @@ class _AppState extends State<App> {
         return Container();
         break;
       case 4:
-        return Container();
-        break;
+        return MyFavoriteContents();
     }
     return Container();
   }

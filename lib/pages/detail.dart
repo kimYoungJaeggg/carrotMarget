@@ -3,6 +3,9 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/components/manor_temperature_widget.dart';
+import 'package:flutter_application_1/repository/contents_repository.dart';
+import 'package:flutter_application_1/utils/data_utils.dart';
+import 'package:flutter_svg/svg.dart';
 
 class DetailContentView extends StatefulWidget {
   Map<String, dynamic> data;
@@ -12,11 +15,18 @@ class DetailContentView extends StatefulWidget {
   _DetailContentViewState createState() => _DetailContentViewState();
 }
 
-class _DetailContentViewState extends State<DetailContentView> {
+class _DetailContentViewState extends State<DetailContentView>
+    with SingleTickerProviderStateMixin {
   late Size size;
   late List<String> imgList;
   late int _current;
+  ContentsRepository contentsRepository = ContentsRepository();
   final CarouselController _controller = CarouselController();
+  ScrollController _scrollController = ScrollController();
+  double scrollPositionToAlpha = 0;
+  late AnimationController _animationController;
+  late Animation _colorTween;
+  bool isMyFavoriteContent = false;
 
   @override
   void didChangeDependencies() {
@@ -32,24 +42,56 @@ class _DetailContentViewState extends State<DetailContentView> {
     ];
   }
 
+  @override
+  void initState() {
+    super.initState();
+    // isMyFavoriteContent = false;
+    _loadMyFavoriteContentState();
+    _animationController = AnimationController(vsync: this);
+    _colorTween = ColorTween(begin: Colors.white, end: Colors.black)
+        .animate(_animationController);
+    _scrollController.addListener(() {
+      setState(() {
+        if (_scrollController.offset > 255) {
+          scrollPositionToAlpha = 255;
+        } else {
+          scrollPositionToAlpha = _scrollController.offset;
+        }
+        _animationController.value = scrollPositionToAlpha / 255;
+      });
+    });
+  }
+
+  _loadMyFavoriteContentState() async {
+    bool ck = await contentsRepository.isMyFavoriteContent(widget.data['cid']);
+    setState(() {
+      isMyFavoriteContent = ck;
+    });
+  }
+
+  Widget _makeIcon(IconData icon) {
+    return AnimatedBuilder(
+      animation: _colorTween,
+      builder: (context, child) => Icon(
+        icon,
+        color: _colorTween.value,
+      ),
+    );
+  }
+
   PreferredSizeWidget _appBarWidget() {
     return AppBar(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white.withAlpha(scrollPositionToAlpha.toInt()),
       elevation: 0,
       leading: IconButton(
-        icon: Icon(
-          Icons.arrow_back,
-          color: Colors.white,
-        ),
+        icon: _makeIcon(Icons.arrow_back),
         onPressed: () {
           Navigator.pop(context);
         },
       ),
       actions: [
-        IconButton(
-            onPressed: () {}, icon: Icon(Icons.share, color: Colors.white)),
-        IconButton(
-            onPressed: () {}, icon: Icon(Icons.more_vert, color: Colors.white)),
+        IconButton(onPressed: () {}, icon: _makeIcon(Icons.share)),
+        IconButton(onPressed: () {}, icon: _makeIcon(Icons.more_vert)),
       ],
     );
   }
@@ -201,7 +243,7 @@ class _DetailContentViewState extends State<DetailContentView> {
   }
 
   Widget _bodyWidget() {
-    return CustomScrollView(slivers: [
+    return CustomScrollView(controller: _scrollController, slivers: [
       SliverList(
         delegate: SliverChildListDelegate(
           [
@@ -252,9 +294,79 @@ class _DetailContentViewState extends State<DetailContentView> {
 
   Widget _bottomBarWidget() {
     return Container(
+      padding: EdgeInsets.symmetric(horizontal: 15),
       height: 55,
       width: size.width,
-      color: Colors.red,
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () async {
+              if (isMyFavoriteContent) {
+                await contentsRepository
+                    .deleteMyFavoriteContent(widget.data["cid"]);
+              } else {
+                await contentsRepository.addMyFavoriteContent(widget.data);
+              }
+
+              setState(() {
+                isMyFavoriteContent = !isMyFavoriteContent;
+              });
+              final snackBar = SnackBar(
+                content: Text(isMyFavoriteContent ? "관심목록등록" : "관심목록제거"),
+                duration: Duration(milliseconds: 1000),
+              );
+              ScaffoldMessenger.of(context).showSnackBar(snackBar);
+            },
+            child: SvgPicture.asset(
+              isMyFavoriteContent
+                  ? "assets/svg/heart_on.svg"
+                  : "assets/svg/heart_off.svg",
+              width: 25,
+              height: 25,
+              color: Color(0xfff08f4f),
+            ),
+          ),
+          Container(
+            margin: EdgeInsets.only(left: 15, right: 10),
+            width: 1,
+            height: 40,
+            color: Colors.grey.withOpacity(0.3),
+          ),
+          Column(
+            children: [
+              Text(
+                DataUtils.calcStringToWon(widget.data["price"]),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+              Text("가격제안불가",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ))
+            ],
+          ),
+          Expanded(
+              child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Container(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 7),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(5),
+                    color: Color(0xfff08f4f),
+                  ),
+                  child: Text(
+                    "채팅으로 거래하기",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )),
+            ],
+          ))
+        ],
+      ),
     );
   }
 

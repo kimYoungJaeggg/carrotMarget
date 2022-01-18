@@ -3,81 +3,47 @@ import 'package:flutter_application_1/pages/detail.dart';
 import 'package:flutter_application_1/repository/contents_repository.dart';
 import 'package:flutter_application_1/utils/data_utils.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:intl/intl.dart';
 
-class Home extends StatefulWidget {
-  Home({Key? key}) : super(key: key);
+class MyFavoriteContents extends StatefulWidget {
+  MyFavoriteContents({Key? key}) : super(key: key);
 
   @override
-  _HomeState createState() => _HomeState();
+  _MyFavoriteContentsState createState() => _MyFavoriteContentsState();
 }
 
-class _HomeState extends State<Home> {
-  String currentLocation = 'ara';
+class _MyFavoriteContentsState extends State<MyFavoriteContents> {
   ContentsRepository contentsRepository = ContentsRepository();
-  final Map<String, String> locatinoTypeToString = {
-    "ara": "아라동",
-    "ora": "오라동",
-    "donam": "도남동"
-  };
-
-  @override
-  void initState() {
-    super.initState();
-    currentLocation = 'ara';
-  }
-
   PreferredSizeWidget _appBarWidget() {
     return AppBar(
-      title: GestureDetector(
-        onTap: () {
-          print("click");
-        },
-        child: PopupMenuButton<String>(
-          offset: Offset(0, 25),
-          shape: ShapeBorder.lerp(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-              1),
-          onSelected: (String where) {
-            setState(() {
-              currentLocation = where;
-            });
-          },
-          itemBuilder: (BuildContext context) {
-            return [
-              PopupMenuItem(value: "ara", child: Text("아라동")),
-              PopupMenuItem(value: "ora", child: Text("오라동")),
-              PopupMenuItem(value: "donam", child: Text("도남동")),
-            ];
-          },
-          child: Row(
-            children: [
-              Text(locatinoTypeToString[currentLocation].toString()),
-              Icon(Icons.arrow_drop_down)
-            ],
-          ),
-        ),
-      ),
-      elevation: 1,
-      actions: [
-        IconButton(onPressed: () {}, icon: Icon(Icons.search)),
-        IconButton(onPressed: () {}, icon: Icon(Icons.tune)),
-        IconButton(
-            onPressed: () {},
-            icon: SvgPicture.asset(
-              "assets/svg/bell.svg",
-              width: 22,
-            ))
-      ],
-    );
+        title: Text(
+      "관심목록",
+      style: TextStyle(fontSize: 15),
+    ));
   }
 
-  _loadContents() {
-    return contentsRepository.loadContentsFromLocation(currentLocation);
+  Widget _bodyWidget() {
+    return FutureBuilder(
+        future: _loadMyFavoriteContentsList(),
+        builder: (BuildContext context, dynamic snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text("데이터 오류"));
+          }
+          if (snapshot.hasData) {
+            return _makeDataList(snapshot.data);
+          }
+
+          return Center(child: Text("데이터없음"));
+        });
   }
 
-  _makeDataList(List<Map<String, String>> datas) {
+  Future<List<dynamic>?> _loadMyFavoriteContentsList() async {
+    return await contentsRepository.loadFavoriteContents();
+  }
+
+  _makeDataList(List<dynamic> datas) {
     return ListView.separated(
         padding: EdgeInsets.symmetric(horizontal: 10),
         itemBuilder: (BuildContext _context, int index) {
@@ -154,24 +120,6 @@ class _HomeState extends State<Home> {
           return Container(height: 1, color: Colors.black.withOpacity(0.4));
         },
         itemCount: datas.length);
-  }
-
-  Widget _bodyWidget() {
-    return FutureBuilder(
-        future: _loadContents(),
-        builder: (BuildContext context, dynamic snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("데이터 오류"));
-          }
-          if (snapshot.hasData) {
-            return _makeDataList(snapshot.data);
-          }
-
-          return Center(child: Text("데이터없음"));
-        });
   }
 
   @override
